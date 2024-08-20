@@ -14,7 +14,7 @@ class _NewPostScreenState extends State<NewPostScreen> {
   // List<String> _photoUrls = [];
 
   Future<void> autoCompleteSearch(String input) async {
-    String apiKey = 'AIzaSyCRrhp01vTFS37l8LmQhaEdBqSdQAjunSo';
+    String apiKey = '';
     String baseURL =
         'https://maps.googleapis.com/maps/api/place/autocomplete/json';
 
@@ -55,7 +55,7 @@ class _NewPostScreenState extends State<NewPostScreen> {
   }
 
   Future<void> getPlaceDetails(String placeId) async {
-    String apiKey = 'AIzaSyCRrhp01vTFS37l8LmQhaEdBqSdQAjunSo';
+    String apiKey = '';
     String baseURL = 'https://maps.googleapis.com/maps/api/place/details/json';
     String request = '$baseURL?place_id=$placeId&key=$apiKey';
 
@@ -76,7 +76,7 @@ class _NewPostScreenState extends State<NewPostScreen> {
   }
 
   Future<List<String>> getPlacePhotos(String placeId) async {
-    String apiKey = 'AIzaSyCRrhp01vTFS37l8LmQhaEdBqSdQAjunSo';
+    String apiKey = '';
     String baseURL = 'https://maps.googleapis.com/maps/api/place/details/json';
     String request = '$baseURL?place_id=$placeId&key=$apiKey';
 
