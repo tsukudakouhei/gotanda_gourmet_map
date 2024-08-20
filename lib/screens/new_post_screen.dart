@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:http/http.dart' as http;
 import 'dart:convert';
 import 'review_screen.dart';
+import 'package:flutter_dotenv/flutter_dotenv.dart';
 
 class NewPostScreen extends StatefulWidget {
   @override
@@ -14,7 +15,7 @@ class _NewPostScreenState extends State<NewPostScreen> {
   // List<String> _photoUrls = [];
 
   Future<void> autoCompleteSearch(String input) async {
-    String apiKey = '';
+    String apiKey = dotenv.env['GOOGLE_PLACES_API_KEY'] ?? '';
     String baseURL =
         'https://maps.googleapis.com/maps/api/place/autocomplete/json';
 
@@ -55,7 +56,7 @@ class _NewPostScreenState extends State<NewPostScreen> {
   }
 
   Future<void> getPlaceDetails(String placeId) async {
-    String apiKey = '';
+    String apiKey = dotenv.env['GOOGLE_PLACES_API_KEY'] ?? '';
     String baseURL = 'https://maps.googleapis.com/maps/api/place/details/json';
     String request = '$baseURL?place_id=$placeId&key=$apiKey';
 
