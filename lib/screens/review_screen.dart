@@ -1,15 +1,25 @@
 import 'package:flutter/material.dart';
+import 'package:cloud_firestore/cloud_firestore.dart';
+import '../services/auth_service.dart';
 
 class ReviewScreen extends StatefulWidget {
-  final String restaurantName;
+  final Map<String, dynamic> restaurantData;
+  final double latitude;
+  final double longitude;
 
-  ReviewScreen({required this.restaurantName});
+  ReviewScreen({
+    Key? key, 
+    required this.restaurantData, 
+    required this.latitude, 
+    required this.longitude
+  }) : super(key: key);
 
   @override
   _ReviewScreenState createState() => _ReviewScreenState();
 }
 
 class _ReviewScreenState extends State<ReviewScreen> {
+  final AuthService _authService = AuthService();
   double _rating = 0;
   bool _isRatingModalOpen = false;
 
@@ -46,15 +56,74 @@ class _ReviewScreenState extends State<ReviewScreen> {
     '¥10,000~'
   ];
 
+  Future<void> _submitReviewAndRestaurantInfo() async {
+    try {
+      // Firestoreのインスタンスを取得
+      final firestore = FirebaseFirestore.instance;
+      final user = AuthService().getCurrentUser();
+
+      if (user == null) {
+        throw Exception('ユーザーがログインしていません');
+      }
+
+      // レストランのデータを作成
+      final restaurantData = {
+        'name': widget.restaurantData['structured_formatting']['main_text'],
+        'address': widget.restaurantData['structured_formatting']['secondary_text'],
+        'place_id': widget.restaurantData['place_id'],
+        'photoUrls': widget.restaurantData['photoUrls'],
+        'updatedAt': FieldValue.serverTimestamp(),
+        'location': GeoPoint(widget.latitude, widget.longitude),
+      };
+
+      final reviewData = {
+        'rating': _rating,
+        'categories': _selectedCategories.toList(),
+        'priceRange': _selectedPriceRange,
+        'reviewText': _reviewText,
+        'createdAt': FieldValue.serverTimestamp(),
+        'userId': user.uid,
+        'userName': user.displayName,
+        'userEmail': user.email,
+      };
+
+      // トランザクションを使用してレストラン情報とレビューを同時に保存
+      await firestore.runTransaction((transaction) async {
+        // レストラン情報を保存または更新
+        final restaurantRef = firestore.collection('restaurants').doc(widget.restaurantData['place_id']);
+        final restaurantDoc = await transaction.get(restaurantRef);
+        if (restaurantDoc.exists) {
+          transaction.update(restaurantRef, restaurantData);
+        } else {
+          transaction.set(restaurantRef, restaurantData);
+        }
+
+        // レビューを保存
+        final reviewRef = restaurantRef.collection('reviews').doc();
+        transaction.set(reviewRef, reviewData);
+      });
+
+      // 成功メッセージを表示
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text('レビューとレストラン情報が投稿されました')),
+      );
+
+      // 前の画面に戻る
+      Navigator.of(context).pop();
+    } catch (e) {
+      print('エラーが発生しました: $e');
+      // エラーメッセージを表示
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text('エラーが発生しました: $e')),
+      );
+    }
+  }
+
   @override
   Widget build(BuildContext context) {
     return Scaffold(
       appBar: AppBar(
-        leading: IconButton(
-          icon: Icon(Icons.close),
-          onPressed: () => Navigator.of(context).pop(),
-        ),
-        title: Text(widget.restaurantName),
+        title: Text(widget.restaurantData['structured_formatting']['main_text']),
         actions: [
           TextButton(
             child: Text('設定'),
@@ -62,26 +131,28 @@ class _ReviewScreenState extends State<ReviewScreen> {
           ),
         ],
       ),
-      body: Stack(children: [
-        SingleChildScrollView(
-          padding: EdgeInsets.all(16.0),
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              _buildRatingSection(),
-              SizedBox(height: 16),
-              _buildCategorySection(),
-              SizedBox(height: 16),
-              _buildPriceRangeSection(),
-              SizedBox(height: 16),
-              _buildReviewTextField(),
-              SizedBox(height: 16),
-              _buildPhotoSection(),
-            ],
+      body: Stack(
+        children: [
+          SingleChildScrollView(
+            padding: EdgeInsets.all(16.0),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                _buildRatingSection(),
+                SizedBox(height: 16),
+                _buildCategorySection(),
+                SizedBox(height: 16),
+                _buildPriceRangeSection(),
+                SizedBox(height: 16),
+                _buildReviewTextField(),
+                SizedBox(height: 16),
+                _buildPhotoSection(),
+              ],
+            ),
           ),
-        ),
-        if (_isRatingModalOpen) _buildRatingModal(),
-      ]),
+          if (_isRatingModalOpen) _buildRatingModal(),
+        ],
+      ),
       bottomNavigationBar: BottomAppBar(
         child: Padding(
           padding: EdgeInsets.symmetric(horizontal: 16.0, vertical: 8.0),
@@ -94,7 +165,7 @@ class _ReviewScreenState extends State<ReviewScreen> {
               ),
               ElevatedButton(
                 child: Text('同意して投稿'),
-                onPressed: () {/* 投稿の処理 */},
+                onPressed: _submitReviewAndRestaurantInfo,
               ),
             ],
           ),

@@ -10,6 +10,7 @@ class NewPostScreen extends StatefulWidget {
 }
 
 class _NewPostScreenState extends State<NewPostScreen> {
+  Map<String, dynamic>? selectedRestaurant;
   final _searchController = TextEditingController();
   List<dynamic> _predictions = [];
   // List<String> _photoUrls = [];
@@ -32,47 +33,61 @@ class _NewPostScreenState extends State<NewPostScreen> {
 
     var response = await http.get(Uri.parse(request));
     print('Response: ${response.body}');
-    if (response.statusCode == 200) {
-      var predictions = json.decode(response.body)['predictions'];
-      List<Map<String, dynamic>> updatedPredictions = [];
-      // predictionsの要素数を表示
-      print('Predictions: ${predictions.length}');
-      for (var prediction in predictions) {
-        List<String> photoUrls = await getPlacePhotos(prediction['place_id']);
-        updatedPredictions.add({
-          'description': prediction['description'],
-          'place_id': prediction['place_id'],
-          'structured_formatting': prediction['structured_formatting'],
-          'photoUrls': photoUrls,
-        });
-      }
 
+   if (response.statusCode == 200) {
+    var predictions = json.decode(response.body)['predictions'];
+    List<Map<String, dynamic>> updatedPredictions = [];
+    print('Predictions: ${predictions.length}');
+    for (var prediction in predictions) {
+      print('Prediction: $prediction');
+      List<String> photoUrls = await getPlacePhotos(prediction['place_id']);
+      Map<String, dynamic> details = await getPlaceDetails(prediction['place_id']);
+      updatedPredictions.add({
+        'description': prediction['description'],
+        'place_id': prediction['place_id'],
+        'structured_formatting': prediction['structured_formatting'],
+        'photoUrls': photoUrls,
+        'geometry': details['geometry'], // 位置情報を追加
+      });
+    }
+
+    setState(() {
+      _predictions = updatedPredictions;
+    });
+    print('Updated Predictions: $_predictions');
+  } else {
+    print('Error: ${response.reasonPhrase}');
+  }
+}
+
+  void _selectRestaurant(Map<String, dynamic> restaurant) {
+    if (restaurant['geometry'] != null &&
+        restaurant['geometry']['location'] != null &&
+        restaurant['geometry']['location']['lat'] != null &&
+        restaurant['geometry']['location']['lng'] != null) {
       setState(() {
-        _predictions = updatedPredictions;
+        selectedRestaurant = restaurant;
       });
     } else {
-      print('Error: ${response.reasonPhrase}');
+      print('Error: Invalid restaurant data structure');
+      print('Restaurant data: $restaurant');
+      // ここでエラーメッセージを表示するなどの処理を追加できます
     }
   }
 
-  Future<void> getPlaceDetails(String placeId) async {
+  Future<Map<String, dynamic>> getPlaceDetails(String placeId) async {
     String apiKey = dotenv.env['GOOGLE_PLACES_API_KEY'] ?? '';
     String baseURL = 'https://maps.googleapis.com/maps/api/place/details/json';
-    String request = '$baseURL?place_id=$placeId&key=$apiKey';
+    String request = '$baseURL?place_id=$placeId&key=$apiKey&fields=geometry';
 
     var response = await http.get(Uri.parse(request));
 
     if (response.statusCode == 200) {
       var details = json.decode(response.body)['result'];
-      List<String> photoUrls = await getPlacePhotos(placeId);
-
-      setState(() {
-        _searchController.text = details['name'];
-        var index = _predictions.indexWhere((p) => p['place_id'] == placeId);
-        if (index != -1) {
-          _predictions[index]['photoUrls'] = photoUrls.cast<String>();
-        }
-      });
+      return details;
+    } else {
+      print('Error: ${response.reasonPhrase}');
+      return {};
     }
   }
 
@@ -140,18 +155,28 @@ class _NewPostScreenState extends State<NewPostScreen> {
                           ?.cast<String>() ??
                       [];
                   return GestureDetector(
-                    // この行を追加
                     onTap: () {
-                      Navigator.push(
-                        context,
-                        MaterialPageRoute(
-                          builder: (context) => ReviewScreen(
-                            restaurantName: _predictions[index]
-                                ['structured_formatting']['main_text'],
+                      _selectRestaurant(_predictions[index]);
+                      if (selectedRestaurant != null &&
+                          selectedRestaurant!['geometry'] != null &&
+                          selectedRestaurant!['geometry']['location'] != null) {
+                        Navigator.push(
+                          context,
+                          MaterialPageRoute(
+                            builder: (context) => ReviewScreen(
+                              restaurantData: selectedRestaurant!,
+                              latitude: selectedRestaurant!['geometry']['location']['lat'],
+                              longitude: selectedRestaurant!['geometry']['location']['lng'],
+                            ),
                           ),
-                        ),
-                      );
-                    }, // この行を追加
+                        );
+                      } else {
+                        // エラーメッセージを表示するなどの処理
+                        ScaffoldMessenger.of(context).showSnackBar(
+                          SnackBar(content: Text('レストランの位置情報が不完全です')),
+                        );
+                      }
+                    },
                     child: Container(
                       margin: EdgeInsets.only(bottom: 16),
                       padding: EdgeInsets.all(16),

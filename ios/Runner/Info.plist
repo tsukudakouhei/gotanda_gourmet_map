@@ -65,5 +65,20 @@
 	</array>
 	<key>io.flutter.embedded_views_preview</key>
 	<true/>
+	<key>CFBundleURLTypes</key>
+	<array>
+		<dict>
+			<key>CFBundleURLSchemes</key>
+			<array>
+				<string>com.googleusercontent.apps.874279744995-sphnpdpsshfucspvcqm7v1lanr5e0dcp</string>
+			</array>
+			<key>CFBundleTypeRole</key>
+			<string>Editor</string>
+			<key>CFBundleURLName</key>
+			<string>google_sign_in</string>
+		</dict>
+	</array>
+	<key>GIDClientID</key>
+	<string>874279744995-sphnpdpsshfucspvcqm7v1lanr5e0dcp.apps.googleusercontent.com</string>
 </dict>
 </plist>
